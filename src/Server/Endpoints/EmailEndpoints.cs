@@ -18,6 +18,7 @@ namespace Server.Endpoints
                         var emailSettings = configuration.GetSection("EmailSettings");
 
                         var fromEmail = emailSettings["FromEmail"];
+                        var senderName = emailSettings["SenderName"];
                         var toEmail = emailSettings["ToEmail"];
                         var subject = "Test Email";
                         var body = "This is a test email.";
@@ -32,23 +33,29 @@ namespace Server.Endpoints
                             password.AppendChar(c);
                         }
 
-                        var message = new MailMessage(fromEmail!, toEmail!, subject, body);
-
-                        var smtpClient = new SmtpClient(host, port)
+                        using (var message = new MailMessage())
                         {
-                            EnableSsl = true,
-                            Credentials = new NetworkCredential(userName, password)
-                        };
+                            message.Subject = subject;
+                            message.From = new MailAddress(fromEmail!, senderName);
+                            message.To.Add(toEmail!);
+                            message.Body = body;
+
+                            using (var client = new SmtpClient(host, port))
+                            {
+                                client.Credentials = new NetworkCredential(userName, password);
+                                client.EnableSsl = true;
+                                client.Send(message);
+                                try
+                                {
+                                    Console.WriteLine("Email successfully sent!");
+                                }
+                                catch (SmtpException ex)
+                                {
+                                    Console.WriteLine($"Email was unsuccessful: {ex.Message}");
+                                }
+                            }
+                        }
                         password.Clear();
-
-                        try
-                        {
-                            await smtpClient.SendMailAsync(message);
-                        }
-                        catch (SmtpException ex)
-                        {
-                            Console.WriteLine($"Email was unsuccessful: {ex.Message}");
-                        }
                     }
                 )
                 .WithName("SendEmail")
